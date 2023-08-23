@@ -6,6 +6,9 @@ import pandas as pd
 from pandas.plotting import scatter_matrix
 import hashlib
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
 def load_housing_data(housing_path):
@@ -107,3 +110,59 @@ housing["population_per_household"] = housing["population"] / housing["household
 
 corr_matrix = housing.corr(numeric_only=True)
 print(corr_matrix["median_house_value"].sort_values(ascending=False))
+
+# housing = strat_train_set.drop()[(housing["median_house_value"] < 500_000) &
+#                                  (housing["median_house_value"] != 450_000) &
+#                                  (housing["median_house_value"] != 350_000) &
+#                                  (housing["median_house_value"] != 280_000)]
+
+
+housing = strat_train_set.drop("median_house_value", axis=1)
+housing_labels = strat_train_set["median_house_value"].copy()
+
+median = housing["total_bedrooms"].median()
+housing["total_bedrooms"].fillna(median, inplace=True)
+
+imputer = SimpleImputer(strategy="median")
+housing_num = housing.drop("ocean_proximity", axis=1)
+imputer.fit(housing_num)
+
+print(imputer.statistics_, housing_num.median().values, sep='\n')
+
+X = imputer.transform(housing_num)
+housing_tr = pd.DataFrame(X, columns=housing_num.columns)
+
+housing_cat = housing["ocean_proximity"]
+# housing_cat.head(10)
+
+housing_cat_encoded, housing_categories = housing_cat.factorize()
+
+encoder = OneHotEncoder()
+housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1, 1))
+housing_cat_1hot.toarray()
+
+rooms_ix, bedrooms_ix, population_ix, household_ix = 3, 4, 5, 6
+
+
+class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
+    def __init__(self, add_bedrooms_per_room=True):
+        self.add_bedrooms_per_room = add_bedrooms_per_room
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, y=None):
+        rooms_per_household = X[:, rooms_ix] / X[:, household_ix]
+        population_per_household = X[:, population_ix] / X[:, household_ix]
+
+        if self.add_bedrooms_per_room:
+            bedrooms_per_room = X[:, bedrooms_ix] / X[:, rooms_ix]
+            return np.c_[X, rooms_per_household, population_per_household,
+                         bedrooms_per_room]
+        else:
+            return np.c_[X, rooms_per_household, population_per_household]
+
+
+attr_adder = CombinedAttributesAdder(add_bedrooms_per_room=False)
+housing_extra_attribs = attr_adder.transform(housing.values)
+
