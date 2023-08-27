@@ -1,5 +1,5 @@
 import os.path
-
+from sklearn_pandas.dataframe_mapper import DataFrameMapper
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,8 +7,10 @@ from pandas.plotting import scatter_matrix
 import hashlib
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import *
+# from sklearn_features.transformers import DataFrameSelector
 
 
 def load_housing_data(housing_path):
@@ -127,7 +129,7 @@ imputer = SimpleImputer(strategy="median")
 housing_num = housing.drop("ocean_proximity", axis=1)
 imputer.fit(housing_num)
 
-print(imputer.statistics_, housing_num.median().values, sep='\n')
+# print(imputer.statistics_, housing_num.median().values, sep='\n')
 
 X = imputer.transform(housing_num)
 housing_tr = pd.DataFrame(X, columns=housing_num.columns)
@@ -140,6 +142,7 @@ housing_cat_encoded, housing_categories = housing_cat.factorize()
 encoder = OneHotEncoder()
 housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1, 1))
 housing_cat_1hot.toarray()
+
 
 rooms_ix, bedrooms_ix, population_ix, household_ix = 3, 4, 5, 6
 
@@ -158,7 +161,7 @@ class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
         if self.add_bedrooms_per_room:
             bedrooms_per_room = X[:, bedrooms_ix] / X[:, rooms_ix]
             return np.c_[X, rooms_per_household, population_per_household,
-                         bedrooms_per_room]
+            bedrooms_per_room]
         else:
             return np.c_[X, rooms_per_household, population_per_household]
 
@@ -166,3 +169,47 @@ class CombinedAttributesAdder(BaseEstimator, TransformerMixin):
 attr_adder = CombinedAttributesAdder(add_bedrooms_per_room=False)
 housing_extra_attribs = attr_adder.transform(housing.values)
 
+
+class DataFrameSelector(BaseEstimator, TransformerMixin):
+    def __init__(self, attribute_names):
+        self.attribute_names = attribute_names
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return X[self.attribute_names].values
+
+
+num_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy="median")),
+    ('attribs_adder', CombinedAttributesAdder()),
+    ('std_scaler', StandardScaler())
+])
+
+housing_num_tr = num_pipeline.fit_transform(housing_num)
+
+num_attribs = list(housing_num)
+cat_attribs = ["ocean_proximity"]
+
+data_frame = DataFrameSelector(num_attribs)
+
+
+num_pipeline = Pipeline([
+    ('selector', DataFrameSelector(num_attribs)),
+    ('imputer', SimpleImputer(strategy="median")),
+    ('attribs_adder', CombinedAttributesAdder()),
+    ('std_scaler', StandardScaler()),
+])
+
+cat_pipeline = Pipeline([
+    ('selector', DataFrameSelector(cat_attribs)),
+    ('cat_encoder', OneHotEncoder())
+])
+
+full_pipeline = FeatureUnion(transformer_list=[
+    ("num_pipeline", num_pipeline),
+    ("cat_pipeline", cat_pipeline),
+])
+
+print(full_pipeline.fit_transform(housing))
