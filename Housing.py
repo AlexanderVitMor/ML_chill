@@ -7,12 +7,13 @@ import pandas as pd
 from pandas.plotting import scatter_matrix
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
-from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.pipeline import *
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import *
 
 
 # from sklearn_features.transformers import DataFrameSelector
@@ -148,7 +149,6 @@ encoder = OneHotEncoder()
 housing_cat_1hot = encoder.fit_transform(housing_cat_encoded.reshape(-1, 1))
 housing_cat_1hot.toarray()
 
-
 rooms_ix, bedrooms_ix, population_ix, household_ix = 3, 4, 5, 6
 
 
@@ -199,7 +199,6 @@ cat_attribs = ["ocean_proximity"]
 
 data_frame = DataFrameSelector(num_attribs)
 
-
 num_pipeline = Pipeline([
     ('selector', DataFrameSelector(num_attribs)),
     ('imputer', SimpleImputer(strategy="median")),
@@ -227,6 +226,7 @@ some_data, some_labels = housing.iloc[:5], housing_labels.iloc[:5]
 some_data_prepared = full_pipeline.transform(some_data)
 
 """"""
+print(f'>>>:LinearRegression')
 print(f'Прогнозы: {lin_reg.predict(some_data_prepared)}')
 print(f'Метки: {list(some_labels)}')
 """"""
@@ -243,6 +243,7 @@ tree_reg = DecisionTreeRegressor()
 tree_reg.fit(housing_prepared, housing_labels)
 
 """"""
+print(f'>>>:DecisionTreeRegressor')
 print(f'Прогнозы: {tree_reg.predict(some_data_prepared)}')
 print(f'Метки: {list(some_labels)}')
 """"""
@@ -254,3 +255,59 @@ tree_rmse = np.sqrt(tree_mse)
 """"""
 print(f'Ошибка RMSE: {tree_rmse}')
 """Переобучение"""
+
+forest_reg = RandomForestRegressor()
+forest_reg.fit(housing_prepared, housing_labels)
+
+""""""
+print(f'>>>:RandomForestRegressor')
+print(f'Прогнозы: {forest_reg.predict(some_data_prepared)}')
+print(f'Метки: {list(some_labels)}')
+""""""
+
+housing_predictions = forest_reg.predict(housing_prepared)
+forest_mse = mean_squared_error(housing_labels, housing_predictions)
+forest_rmse = np.sqrt(forest_mse)
+
+""""""
+print(f'Ошибка RMSE: {forest_rmse}')
+"""Многообещающе"""
+
+# tree_scores = cross_val_score(tree_reg, housing_prepared, housing_labels,
+#                               scoring="neg_mean_squared_error", cv=10)
+# tree_rmse_scores = np.sqrt(-tree_scores)
+#
+# lin_scores = cross_val_score(lin_reg, housing_prepared, housing_labels,
+#                              scoring="neg_mean_squared_error", cv=10)
+# lin_rmse_scores = np.sqrt(-lin_scores)
+#
+# forest_scores = cross_val_score(forest_reg, housing_prepared, housing_labels,
+#                                 scoring="neg_mean_squared_error", cv=10)
+# forest_rmse_scores = np.sqrt(-forest_scores)
+
+""""""
+
+
+def display_scores(scores, name):
+    print(f'>>>Перекрестная проверки для {name}:')
+    print(f"Суммы оценок:{scores}")
+    print(f"Среднее:{scores.mean()}")
+    print(f"Стандартное отклонение:{scores.std()}")
+
+
+# display_scores(tree_rmse_scores, "DecisionTreeRegressor")
+# display_scores(lin_rmse_scores, "LinearRegression")
+# display_scores(forest_rmse_scores, "RandomForestRegressor")
+""""""
+
+param_grid = [
+    {'n_estimators': [3, 10, 30], "max_features": [2, 4, 6, 8]},
+    {'bootstrap': [False], 'n_estimators': [3, 10], "max_features": [2, 3, 4]}
+]
+forest_reg = RandomForestRegressor()
+grid_search = GridSearchCV(forest_reg, param_grid, cv=5, scoring="neg_mean_squared_error")
+grid_search.fit(housing_prepared, housing_labels)
+
+""""""
+print(grid_search.best_params_)
+""""""
