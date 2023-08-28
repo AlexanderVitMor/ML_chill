@@ -1,15 +1,19 @@
+import hashlib
 import os.path
-from sklearn_pandas.dataframe_mapper import DataFrameMapper
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pandas.plotting import scatter_matrix
-import hashlib
-from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.pipeline import *
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+
+
 # from sklearn_features.transformers import DataFrameSelector
 
 
@@ -211,5 +215,27 @@ full_pipeline = FeatureUnion(transformer_list=[
     ("num_pipeline", num_pipeline),
     ("cat_pipeline", cat_pipeline),
 ])
+housing_prepared = full_pipeline.fit_transform(housing)
 
-print(full_pipeline.fit_transform(housing))
+print(housing_prepared.shape)
+
+lin_reg = LinearRegression()
+lin_reg.fit(housing_prepared, housing_labels)
+
+some_data, some_labels = housing.iloc[:5], housing_labels.iloc[:5]
+some_data_prepared = full_pipeline.transform(some_data)
+
+""""""
+print(f'Прогнозы: {lin_reg.predict(some_data_prepared)}')
+print(f'Метки: {list(some_labels)}')
+""""""
+
+housing_predictions = lin_reg.predict(housing_prepared)
+lin_mse = mean_squared_error(housing_labels, housing_predictions)
+lin_rmse = np.sqrt(lin_mse)
+
+""""""
+print(f'Ошибка RMSE: {lin_rmse}')
+""""""
+
+
