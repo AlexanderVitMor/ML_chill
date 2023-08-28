@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split, StratifiedShuffleSplit
 from sklearn.pipeline import *
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import mean_squared_error
 
 
@@ -236,6 +237,20 @@ lin_rmse = np.sqrt(lin_mse)
 
 """"""
 print(f'Ошибка RMSE: {lin_rmse}')
+"""Недообучение"""
+
+tree_reg = DecisionTreeRegressor()
+tree_reg.fit(housing_prepared, housing_labels)
+
+""""""
+print(f'Прогнозы: {tree_reg.predict(some_data_prepared)}')
+print(f'Метки: {list(some_labels)}')
 """"""
 
+housing_predictions = tree_reg.predict(housing_prepared)
+tree_mse = mean_squared_error(housing_labels, housing_predictions)
+tree_rmse = np.sqrt(tree_mse)
 
+""""""
+print(f'Ошибка RMSE: {tree_rmse}')
+"""Переобучение"""
